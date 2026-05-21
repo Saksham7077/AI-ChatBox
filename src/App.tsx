@@ -40,54 +40,57 @@ function Auth({ onSession }: { onSession: (session: Session | null) => void }) {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4 font-sans relative overflow-hidden">
+    <div className="flex min-h-screen items-center justify-center bg-[#09090b] p-4 font-sans relative overflow-hidden">
       {/* Decorative background elements */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-violet-400/20 rounded-full blur-[100px] mix-blend-multiply opacity-50"></div>
-      <div className="absolute top-1/2 left-1/2 translate-x-[-10%] translate-y-[-30%] w-[400px] h-[400px] bg-fuchsia-400/20 rounded-full blur-[100px] mix-blend-multiply opacity-50"></div>
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-violet-600/20 rounded-full blur-[120px] mix-blend-screen opacity-50 animate-pulse-slow"></div>
+      <div className="absolute top-1/2 left-1/2 translate-x-[-10%] translate-y-[-30%] w-[600px] h-[600px] bg-cyan-600/20 rounded-full blur-[120px] mix-blend-screen opacity-50"></div>
       
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-white/80 backdrop-blur-xl border border-zinc-200/60 rounded-3xl shadow-2xl p-8 z-10"
+        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="w-full max-w-md bg-zinc-950/50 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-[0_0_40px_rgba(0,0,0,0.5)] p-8 z-10 relative overflow-hidden"
       >
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-violet-500 to-fuchsia-500 flex items-center justify-center mb-4 shadow-lg shadow-violet-500/20">
+        <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-transparent pointer-events-none" />
+        
+        <div className="flex flex-col items-center mb-8 relative z-10">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-violet-600 to-cyan-500 flex items-center justify-center mb-5 shadow-[0_0_30px_rgba(124,58,237,0.3)]">
             <Sparkles className="w-8 h-8 text-white" />
           </div>
-          <h2 className="text-2xl font-bold text-zinc-900 mb-1">
-            {isLogin ? "Welcome back" : "Create an account"}
+          <h2 className="text-3xl font-bold text-white mb-2 tracking-tight">
+            {isLogin ? "Welcome back" : "Create account"}
           </h2>
-          <p className="text-zinc-500 text-sm">
+          <p className="text-zinc-400 text-sm">
             {isLogin ? "Enter your details to access the AI Assistant." : "Sign up to start chatting with the AI."}
           </p>
         </div>
 
-        <form onSubmit={handleAuth} className="space-y-4">
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-zinc-700 ml-1">Email</label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
+        <form onSubmit={handleAuth} className="space-y-5 relative z-10">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider ml-1">Email</label>
+            <div className="relative group">
+              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500 group-focus-within:text-violet-400 transition-colors" />
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
+                className="w-full pl-11 pr-4 py-3.5 bg-black/40 border border-white/10 rounded-xl focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500 text-white placeholder:text-zinc-600 outline-none transition-all"
                 placeholder="you@example.com"
               />
             </div>
           </div>
           
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-zinc-700 ml-1">Password</label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider ml-1">Password</label>
+            <div className="relative group">
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500 group-focus-within:text-violet-400 transition-colors" />
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
+                className="w-full pl-11 pr-4 py-3.5 bg-black/40 border border-white/10 rounded-xl focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500 text-white placeholder:text-zinc-600 outline-none transition-all"
                 placeholder="••••••••"
               />
             </div>
@@ -96,19 +99,22 @@ function Auth({ onSession }: { onSession: (session: Session | null) => void }) {
           <button
             type="submit"
             disabled={isLoading || !email || !password}
-            className="w-full py-3 px-4 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-medium shadow-md shadow-violet-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center mt-2"
+            className="w-full py-3.5 px-4 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white rounded-xl font-medium shadow-[0_0_20px_rgba(124,58,237,0.4)] transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center mt-4"
           >
             {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isLogin ? "Sign In" : "Sign Up")}
           </button>
         </form>
 
-        <div className="mt-6 text-center">
+        <div className="mt-8 text-center relative z-10">
           <button
             type="button"
             onClick={() => setIsLogin(!isLogin)}
-            className="text-sm text-zinc-500 hover:text-violet-600 transition-colors"
+            className="text-sm text-zinc-400 hover:text-white transition-colors"
           >
-            {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+            {isLogin ? "Don't have an account? " : "Already have an account? "}
+            <span className="text-violet-400 font-medium hover:underline underline-offset-4">
+              {isLogin ? "Sign up" : "Sign in"}
+            </span>
           </button>
         </div>
       </motion.div>
@@ -192,17 +198,24 @@ function AiChat({ session }: { session: Session }) {
   };
 
   return (
-    <div className="flex flex-col h-screen w-full bg-slate-50 relative overflow-hidden font-sans">
-      <div className="flex items-center justify-between p-4 md:p-6 bg-white/80 backdrop-blur-md border-b border-zinc-200 z-10 shadow-sm shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-gradient-to-tr from-violet-500 to-fuchsia-500 text-white shadow-lg shadow-violet-500/20">
+    <div className="flex flex-col h-screen w-full bg-[#09090b] relative overflow-hidden font-sans text-zinc-100">
+      {/* Background Ambience */}
+      <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-violet-900/10 to-transparent pointer-events-none" />
+      
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 md:px-8 bg-black/20 backdrop-blur-xl border-b border-white/5 z-20 shrink-0">
+        <div className="flex items-center gap-4">
+          <div className="p-2.5 rounded-xl bg-gradient-to-tr from-violet-600 to-cyan-500 text-white shadow-[0_0_20px_rgba(124,58,237,0.3)]">
             <Sparkles className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight bg-gradient-to-r from-zinc-900 to-zinc-500 bg-clip-text text-transparent">
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white">
               AI Assistant
             </h1>
-            <p className="text-xs md:text-sm text-zinc-500 font-medium hidden sm:block">Powered by OpenRouter</p>
+            <p className="text-xs md:text-sm text-zinc-400 font-medium flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+              Powered by OpenRouter
+            </p>
           </div>
         </div>
         
@@ -210,18 +223,18 @@ function AiChat({ session }: { session: Session }) {
           {messages.length > 0 && (
             <button 
               onClick={clearChat} 
-              className="flex items-center text-sm font-medium text-zinc-500 hover:text-red-600 transition-colors px-3 py-2 rounded-lg hover:bg-red-50"
+              className="flex items-center text-sm font-medium text-zinc-400 hover:text-red-400 transition-colors px-3 py-2 rounded-lg hover:bg-red-500/10"
             >
               <Trash2 className="w-4 h-4 mr-0 md:mr-2" />
               <span className="hidden md:inline">Clear Chat</span>
             </button>
           )}
           
-          <div className="h-6 w-[1px] bg-zinc-200 hidden md:block"></div>
+          <div className="h-6 w-[1px] bg-white/10 hidden md:block"></div>
           
           <button 
             onClick={handleSignOut}
-            className="flex items-center text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors px-3 py-2 rounded-lg hover:bg-zinc-100"
+            className="flex items-center text-sm font-medium text-zinc-400 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-white/5"
           >
             <LogOut className="w-4 h-4 mr-0 md:mr-2" />
             <span className="hidden md:inline">Sign Out</span>
@@ -229,17 +242,38 @@ function AiChat({ session }: { session: Session }) {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col overflow-hidden max-w-4xl mx-auto w-full relative">
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 scroll-smooth">
-          <div className="space-y-6 max-w-3xl mx-auto w-full pb-4">
+      {/* Chat Area */}
+      <div className="flex-1 flex flex-col overflow-hidden max-w-5xl mx-auto w-full relative z-10">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 scroll-smooth custom-scrollbar">
+          <div className="space-y-6 max-w-3xl mx-auto w-full pb-8">
             {messages.length === 0 ? (
-              <div className="h-[50vh] flex flex-col items-center justify-center text-center px-4">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-violet-100 to-fuchsia-100 flex items-center justify-center mb-6 ring-1 ring-violet-500/20 shadow-xl shadow-violet-500/10">
-                  <Bot className="w-10 h-10 text-violet-600" />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5 }}
+                className="h-[60vh] flex flex-col items-center justify-center text-center px-4"
+              >
+                <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-zinc-900 to-zinc-800 flex items-center justify-center mb-8 ring-1 ring-white/10 shadow-2xl relative group">
+                  <div className="absolute inset-0 bg-violet-500/20 rounded-3xl blur-xl group-hover:bg-violet-500/30 transition-all" />
+                  <Bot className="w-12 h-12 text-zinc-300 relative z-10" />
                 </div>
-                <h3 className="text-2xl font-semibold mb-3 text-zinc-800">Hi, {session.user.email?.split('@')[0]}!</h3>
-                <p className="text-zinc-500 max-w-md text-base leading-relaxed">Ask me anything, from code help to writing emails, and I'll do my best to assist you.</p>
-              </div>
+                <h3 className="text-3xl font-bold mb-4 text-white">Hi, {session.user.email?.split('@')[0]}!</h3>
+                <p className="text-zinc-400 max-w-md text-base leading-relaxed">
+                  How can I help you today? I can write code, draft emails, answer questions, or just chat.
+                </p>
+                
+                <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-lg">
+                  {["Write a React component", "Explain quantum computing", "Help me debug an error", "Draft a polite email"].map((suggestion, i) => (
+                    <button 
+                      key={i}
+                      onClick={() => setInput(suggestion)}
+                      className="p-4 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] hover:border-violet-500/30 transition-all text-sm text-zinc-300 text-left hover:scale-[1.02] active:scale-[0.98]"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
             ) : (
               <AnimatePresence initial={false}>
                 {messages.map((message, index) => (
@@ -250,12 +284,12 @@ function AiChat({ session }: { session: Session }) {
                     transition={{ duration: 0.3 }}
                     className={`flex items-start gap-4 ${message.role === "user" ? "flex-row-reverse" : ""}`}
                   >
-                    <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center shadow-md ${
+                    <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center shadow-lg ${
                       message.role === "user" 
-                        ? "bg-zinc-900 text-white" 
-                        : "bg-gradient-to-tr from-violet-500 to-fuchsia-500 text-white"
+                        ? "bg-gradient-to-tr from-violet-600 to-fuchsia-600 text-white" 
+                        : "bg-zinc-800 border border-white/10 text-white"
                     }`}>
-                      {message.role === "user" ? <User className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
+                      {message.role === "user" ? <User className="w-5 h-5" /> : <Sparkles className="w-5 h-5 text-violet-400" />}
                     </div>
                     
                     <div className={`flex flex-col gap-1.5 max-w-[85%] ${message.role === "user" ? "items-end" : "items-start"}`}>
@@ -264,8 +298,8 @@ function AiChat({ session }: { session: Session }) {
                       </span>
                       <div className={`px-6 py-4 rounded-3xl text-[15px] leading-relaxed shadow-sm border ${
                         message.role === "user" 
-                          ? "bg-zinc-900 text-white border-zinc-900 rounded-tr-sm" 
-                          : "bg-white border-zinc-200 rounded-tl-sm prose prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-zinc-100 prose-pre:text-zinc-800 prose-pre:border prose-pre:border-zinc-200"
+                          ? "bg-violet-600/20 text-white border-violet-500/30 rounded-tr-sm" 
+                          : "bg-white/[0.03] text-zinc-200 border-white/10 rounded-tl-sm prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-black/50 prose-pre:border prose-pre:border-white/10"
                       }`}>
                         {message.role === "assistant" ? (
                           <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -287,12 +321,15 @@ function AiChat({ session }: { session: Session }) {
                 animate={{ opacity: 1, y: 0 }}
                 className="flex items-start gap-4"
               >
-                <div className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-tr from-violet-500 to-fuchsia-500 flex items-center justify-center text-white shadow-md">
-                  <Sparkles className="w-5 h-5" />
+                <div className="w-10 h-10 shrink-0 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center text-white shadow-lg">
+                  <Sparkles className="w-5 h-5 text-violet-400" />
                 </div>
-                <div className="px-6 py-4 rounded-3xl rounded-tl-sm bg-white border border-zinc-200 shadow-sm flex items-center gap-3">
-                  <Loader2 className="w-5 h-5 animate-spin text-violet-500" />
-                  <span className="text-sm font-medium text-zinc-600 animate-pulse">Thinking...</span>
+                <div className="px-6 py-4 rounded-3xl rounded-tl-sm bg-white/[0.03] border border-white/10 flex items-center gap-3">
+                  <span className="flex gap-1.5 py-1">
+                    <span className="w-2 h-2 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: "0ms" }}></span>
+                    <span className="w-2 h-2 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: "150ms" }}></span>
+                    <span className="w-2 h-2 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: "300ms" }}></span>
+                  </span>
                 </div>
               </motion.div>
             )}
@@ -300,26 +337,29 @@ function AiChat({ session }: { session: Session }) {
           </div>
         </div>
 
-        <div className="p-4 md:p-6 bg-gradient-to-t from-slate-50 via-slate-50 to-transparent z-10 shrink-0">
-          <div className="relative flex items-end max-w-3xl mx-auto gap-3 p-2 bg-white border border-zinc-200 rounded-3xl shadow-lg focus-within:ring-4 focus-within:ring-violet-500/10 focus-within:border-violet-300 transition-all">
+        {/* Input Area */}
+        <div className="p-4 md:p-6 bg-gradient-to-t from-[#09090b] via-[#09090b] to-transparent z-10 shrink-0 relative">
+          <div className="relative flex items-end max-w-3xl mx-auto gap-3 p-2 bg-zinc-900 border border-white/10 rounded-3xl shadow-2xl focus-within:ring-2 focus-within:ring-violet-500/50 focus-within:border-violet-500/50 transition-all">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask me anything..."
-              className="flex-1 max-h-[150px] min-h-[44px] bg-transparent resize-none outline-none py-3 px-4 text-base text-zinc-900 placeholder:text-zinc-400"
+              placeholder="Message AI Assistant..."
+              className="flex-1 max-h-[200px] min-h-[44px] bg-transparent resize-none outline-none py-3 px-4 text-base text-zinc-100 placeholder:text-zinc-500"
               rows={1}
             />
             <button 
               onClick={handleSend}
               disabled={!input.trim() || isLoading}
-              className="mb-1 mr-1 h-12 w-12 shrink-0 flex items-center justify-center rounded-2xl bg-violet-600 hover:bg-violet-700 text-white transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 shadow-md"
+              className="mb-1 mr-1 h-12 w-12 shrink-0 flex items-center justify-center rounded-2xl bg-white text-black hover:bg-zinc-200 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 shadow-lg"
             >
-              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5 ml-1" />}
+              {isLoading ? <Loader2 className="w-5 h-5 animate-spin text-black" /> : <Send className="w-5 h-5 ml-0.5 text-black" />}
             </button>
           </div>
-          <div className="text-center mt-3">
-            <span className="text-[11px] text-zinc-400 font-medium tracking-wide">AI can make mistakes. Consider verifying important information.</span>
+          <div className="text-center mt-4">
+            <span className="text-[11px] text-zinc-500 font-medium tracking-wide">
+              AI can make mistakes. Verify important information.
+            </span>
           </div>
         </div>
       </div>
@@ -351,15 +391,21 @@ export default function App() {
 
   if (isInitializing) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-slate-50">
-        <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
+      <div className="flex h-screen w-full items-center justify-center bg-[#09090b]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative w-16 h-16">
+            <div className="absolute inset-0 rounded-full border-t-2 border-violet-500 animate-spin" />
+            <div className="absolute inset-2 rounded-full border-r-2 border-cyan-500 animate-spin" style={{ animationDirection: "reverse" }} />
+          </div>
+          <span className="text-zinc-400 font-medium text-sm animate-pulse">Initializing...</span>
+        </div>
       </div>
     );
   }
 
   return (
     <>
-      <Toaster position="top-center" />
+      <Toaster position="top-center" theme="dark" />
       {!session ? (
         <Auth onSession={setSession} />
       ) : (
