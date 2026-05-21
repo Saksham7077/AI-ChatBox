@@ -5,11 +5,12 @@ import remarkGfm from "remark-gfm";
 import { toast, Toaster } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "./utils/supabase";
+import type { Session } from "@supabase/supabase-js";
 
 // -----------------------------------------------------------------------------
 // Authentication Component
 // -----------------------------------------------------------------------------
-function Auth({ onSession }: { onSession: (session: any) => void }) {
+function Auth({ onSession }: { onSession: (session: Session | null) => void }) {
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -31,8 +32,8 @@ function Auth({ onSession }: { onSession: (session: any) => void }) {
         toast.success("Successfully signed up! You are now logged in.");
         onSession(data.session);
       }
-    } catch (error: any) {
-      toast.error(error.message || "An error occurred during authentication.");
+    } catch (error) {
+      toast.error((error as Error).message || "An error occurred during authentication.");
     } finally {
       setIsLoading(false);
     }
@@ -125,7 +126,7 @@ interface Message {
 
 const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY || "";
 
-function AiChat({ session }: { session: any }) {
+function AiChat({ session }: { session: Session }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -169,8 +170,8 @@ function AiChat({ session }: { session: any }) {
       const botReply = data.choices?.[0]?.message?.content || "No response received.";
       
       setMessages([...newMessages, { role: "assistant", content: botReply }]);
-    } catch (error: any) {
-      toast.error(error.message || "Failed to communicate with AI");
+    } catch (error) {
+      toast.error((error as Error).message || "Failed to communicate with AI");
       setMessages([...newMessages, { role: "assistant", content: "**Error:** Failed to reach the AI server." }]);
     } finally {
       setIsLoading(false);
@@ -330,7 +331,7 @@ function AiChat({ session }: { session: any }) {
 // App Entry
 // -----------------------------------------------------------------------------
 export default function App() {
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
