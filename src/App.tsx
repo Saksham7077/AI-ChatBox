@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Send, User, Bot, Loader2, Sparkles, Trash2, LogOut, Mail, Lock, Menu, Plus, MessageSquare, X } from "lucide-react";
+import { Send, User, Bot, Loader2, Sparkles, Trash2, LogOut, Mail, Lock, Menu, Plus, MessageSquare, X, Paperclip, FileText, FolderOpen, XCircle, FileImage, UploadCloud } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast, Toaster } from "sonner";
@@ -125,9 +125,17 @@ function Auth({ onSession }: { onSession: (session: Session | null) => void }) {
 // -----------------------------------------------------------------------------
 // Chat Component
 // -----------------------------------------------------------------------------
+interface Attachment {
+  name: string;
+  type: string;
+  data: string; // base64 for image, raw text for text files
+  isImage: boolean;
+}
+
 interface Message {
   role: "user" | "assistant";
   content: string;
+  attachments?: Attachment[];
 }
 
 interface ChatSession {
@@ -157,28 +165,108 @@ function AiChat({ session }: { session: Session }) {
   );
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isAttachMenuOpen, setIsAttachMenuOpen] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    localStorage.setItem(`ai_chats_${session.user.id}`, JSON.stringify(chatSessions));
+    try {
+      localStorage.setItem(`ai_chats_${session.user.id}`, JSON.stringify(chatSessions));
+    } catch (e) {
+      // If we hit quota limits, we could notify the user here.
+    }
   }, [chatSessions, session.user.id]);
 
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [chatSessions, activeChatId, isLoading]);
+  }, [chatSessions, activeChatId, isLoading, attachments]);
 
   const activeChat = chatSessions.find(c => c.id === activeChatId);
   const messages = activeChat?.messages || [];
 
+  // --- File Upload Logic ---
+  const allowedExtensions = ['.txt', '.md', '.json', '.csv', '.js', '.ts', '.py', '.html', '.css', '.tsx', '.jsx'];
+
+  const isAllowedFile = (file: File) => {
+    if (file.type.startsWith('image/')) return true;
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    return allowedExtensions.includes(ext);
+  };
+
+  const processFile = (file: File): Promise<Attachment | null> => {
+    return new Promise((resolve) => {
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          resolve({
+            name: file.name,
+            type: file.type,
+            data: e.target?.result as string,
+            isImage: true
+          });
+        };
+        reader.readAsDataURL(file);
+      } else if (file.size < 1024 * 500) { // Limit text files to 500kb
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          resolve({
+            name: file.name,
+            type: file.type || "text/plain",
+            data: e.target?.result as string,
+            isImage: false
+          });
+        };
+        reader.readAsText(file);
+      } else {
+         toast.error(`File ${file.name} is too large or not supported.`);
+         resolve(null);
+      }
+    });
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    const files = Array.from(e.target.files);
+    setIsAttachMenuOpen(false);
+    
+    // Ignore heavy folders like node_modules or .git if a folder is uploaded
+    const validFiles = files.filter(f => 
+      !f.webkitRelativePath.includes('node_modules') && 
+      !f.webkitRelativePath.includes('.git')
+    );
+    
+    // Process only allowed files, limit to 10 to prevent browser freeze
+    const processQueue = validFiles.filter(isAllowedFile).slice(0, 10);
+    if (validFiles.length > 10) {
+      toast.warning("Limited to 10 files per message to prevent overloading.");
+    }
+    if (processQueue.length === 0) {
+      toast.error("No valid text or image files found in selection.");
+      return;
+    }
+
+    const processed = await Promise.all(processQueue.map(processFile));
+    const validProcessed = processed.filter(Boolean) as Attachment[];
+    
+    setAttachments(prev => [...prev, ...validProcessed]);
+    e.target.value = ''; // reset input
+  };
+  // -----------------------
+
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() && attachments.length === 0) return;
 
     const userMessage = input.trim();
     setInput("");
+    const currentAttachments = [...attachments];
+    setAttachments([]); // clear staging
     
     let chatId = activeChatId;
     let newSessions = [...chatSessions];
@@ -186,9 +274,10 @@ function AiChat({ session }: { session: Session }) {
     // Create new chat session if there isn't an active one
     if (!chatId) {
       chatId = Date.now().toString();
+      const titleText = userMessage || (currentAttachments.length > 0 ? `Uploaded ${currentAttachments.length} file(s)` : "New Chat");
       const newChat: ChatSession = {
         id: chatId,
-        title: userMessage.slice(0, 30) + (userMessage.length > 30 ? "..." : ""),
+        title: titleText.slice(0, 30) + (titleText.length > 30 ? "..." : ""),
         messages: [],
         updatedAt: Date.now()
       };
@@ -197,7 +286,12 @@ function AiChat({ session }: { session: Session }) {
     }
     
     const currentChatIndex = newSessions.findIndex(c => c.id === chatId);
-    const newMessages = [...newSessions[currentChatIndex].messages, { role: "user", content: userMessage } as Message];
+    const newMessageObj: Message = { 
+      role: "user", 
+      content: userMessage,
+      attachments: currentAttachments 
+    };
+    const newMessages = [...newSessions[currentChatIndex].messages, newMessageObj];
     
     newSessions[currentChatIndex] = {
       ...newSessions[currentChatIndex],
@@ -213,6 +307,30 @@ function AiChat({ session }: { session: Session }) {
     setIsLoading(true);
 
     try {
+      // Build openrouter payload
+      const apiMessages = newMessages.map(m => {
+        if (m.role === "user" && m.attachments && m.attachments.length > 0) {
+          const content = [];
+          let textContent = m.content || "Here are some files:";
+          
+          // Inject text files into prompt
+          const textAttachments = m.attachments.filter(a => !a.isImage);
+          if (textAttachments.length > 0) {
+             textContent += "\n\nAttached Files:\n" + textAttachments.map(a => `--- ${a.name} ---\n${a.data}\n--- End of ${a.name} ---`).join("\n\n");
+          }
+          
+          content.push({ type: "text", text: textContent });
+          
+          // Inject images for vision model
+          m.attachments.filter(a => a.isImage).forEach(img => {
+             content.push({ type: "image_url", image_url: { url: img.data } });
+          });
+          
+          return { role: m.role, content };
+        }
+        return { role: m.role, content: m.content };
+      });
+
       const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -222,8 +340,8 @@ function AiChat({ session }: { session: Session }) {
           "X-Title": "Localhost AI Chat",
         },
         body: JSON.stringify({
-          model: "openai/gpt-3.5-turbo",
-          messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+          model: "openai/gpt-4o-mini", // Upgraded model to support Vision and longer contexts
+          messages: apiMessages,
         })
       });
 
@@ -287,6 +405,25 @@ function AiChat({ session }: { session: Session }) {
   return (
     <div className="flex h-screen w-full bg-[#09090b] relative overflow-hidden font-sans text-zinc-100">
       
+      {/* Hidden File Inputs */}
+      <input 
+        type="file" 
+        multiple 
+        className="hidden" 
+        ref={fileInputRef} 
+        onChange={handleFileSelect} 
+        accept="image/*,.txt,.md,.js,.ts,.json,.csv,.py,.html,.css,.jsx,.tsx"
+      />
+      <input 
+        type="file" 
+        // @ts-ignore
+        webkitdirectory="true" 
+        directory="true"
+        className="hidden" 
+        ref={folderInputRef} 
+        onChange={handleFileSelect} 
+      />
+
       {/* Mobile Sidebar Overlay */}
       <AnimatePresence>
         {isSidebarOpen && (
@@ -374,7 +511,7 @@ function AiChat({ session }: { session: Session }) {
               </h1>
               <p className="text-xs md:text-sm text-zinc-400 font-medium flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
-                Powered by OpenRouter
+                Powered by gpt-4o-mini
               </p>
             </div>
           </div>
@@ -394,7 +531,7 @@ function AiChat({ session }: { session: Session }) {
 
         {/* Chat Content */}
         <div className="flex-1 flex flex-col overflow-hidden w-full relative z-10">
-          <div className="flex-1 overflow-y-auto p-4 md:p-6 scroll-smooth custom-scrollbar">
+          <div className="flex-1 overflow-y-auto p-4 md:p-6 scroll-smooth custom-scrollbar" onClick={() => setIsAttachMenuOpen(false)}>
             <div className="space-y-6 max-w-4xl mx-auto w-full pb-8">
               {messages.length === 0 ? (
                 <motion.div 
@@ -409,11 +546,11 @@ function AiChat({ session }: { session: Session }) {
                   </div>
                   <h3 className="text-3xl font-bold mb-4 text-white">Hi, {session.user.email?.split('@')[0]}!</h3>
                   <p className="text-zinc-400 max-w-md text-base leading-relaxed">
-                    How can I help you today? I can write code, draft emails, answer questions, or just chat.
+                    How can I help you today? Upload images, text files, or folders to ask questions about them.
                   </p>
                   
                   <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-lg">
-                    {["Write a React component", "Explain quantum computing", "Help me debug an error", "Draft a polite email"].map((suggestion, i) => (
+                    {["Explain quantum computing", "Help me debug an error", "Summarize an attached document", "What's in this image?"].map((suggestion, i) => (
                       <button 
                         key={i}
                         onClick={() => setInput(suggestion)}
@@ -446,6 +583,7 @@ function AiChat({ session }: { session: Session }) {
                         <span className="text-xs font-medium text-zinc-500 px-1">
                           {message.role === "user" ? "You" : "AI Assistant"}
                         </span>
+                        
                         <div className={`px-6 py-4 rounded-3xl text-[15px] leading-relaxed shadow-sm border ${
                           message.role === "user" 
                             ? "bg-violet-600/20 text-white border-violet-500/30 rounded-tr-sm" 
@@ -459,6 +597,23 @@ function AiChat({ session }: { session: Session }) {
                             <div className="whitespace-pre-wrap">{message.content}</div>
                           )}
                         </div>
+                        
+                        {/* Render Attachments in History */}
+                        {message.attachments && message.attachments.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {message.attachments.map((att, i) => (
+                              att.isImage ? (
+                                <img key={i} src={att.data} alt={att.name} className="w-32 h-32 object-cover rounded-xl border border-white/10 shadow-md" />
+                              ) : (
+                                <div key={i} className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg p-2.5 max-w-[200px] shadow-sm">
+                                   <FileText className="w-4 h-4 text-violet-400 shrink-0" />
+                                   <span className="text-xs text-zinc-400 truncate font-medium">{att.name}</span>
+                                </div>
+                              )
+                            ))}
+                          </div>
+                        )}
+                        
                       </div>
                     </motion.div>
                   ))}
@@ -488,27 +643,94 @@ function AiChat({ session }: { session: Session }) {
           </div>
 
           {/* Input Area */}
-          <div className="p-4 md:p-6 bg-gradient-to-t from-[#09090b] via-[#09090b] to-transparent z-10 shrink-0 relative">
-            <div className="relative flex items-end max-w-4xl mx-auto gap-3 p-2 bg-zinc-900 border border-white/10 rounded-3xl shadow-2xl focus-within:ring-2 focus-within:ring-violet-500/50 focus-within:border-violet-500/50 transition-all">
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Message AI Assistant..."
-                className="flex-1 max-h-[200px] min-h-[44px] bg-transparent resize-none outline-none py-3 px-4 text-base text-zinc-100 placeholder:text-zinc-500"
-                rows={1}
-              />
-              <button 
-                onClick={handleSend}
-                disabled={!input.trim() || isLoading}
-                className="mb-1 mr-1 h-12 w-12 shrink-0 flex items-center justify-center rounded-2xl bg-white text-black hover:bg-zinc-200 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 shadow-lg"
-              >
-                {isLoading ? <Loader2 className="w-5 h-5 animate-spin text-black" /> : <Send className="w-5 h-5 ml-0.5 text-black" />}
-              </button>
+          <div className="p-4 md:p-6 bg-gradient-to-t from-[#09090b] via-[#09090b] to-transparent z-20 shrink-0 relative">
+            <div className="max-w-4xl mx-auto flex flex-col gap-2">
+              
+              {/* Attachment Previews */}
+              {attachments.length > 0 && (
+                <div className="flex flex-wrap gap-2 px-1">
+                  {attachments.map((att, i) => (
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+                      key={i} 
+                      className="relative flex items-center gap-2 bg-zinc-800/80 backdrop-blur-md border border-white/10 rounded-xl p-2 pr-10 max-w-[200px] shadow-lg"
+                    >
+                      {att.isImage ? (
+                         <img src={att.data} alt="preview" className="w-8 h-8 object-cover rounded-md border border-white/5" />
+                      ) : (
+                         <div className="w-8 h-8 rounded-md bg-white/5 flex items-center justify-center shrink-0">
+                           <FileText className="w-4 h-4 text-violet-400" />
+                         </div>
+                      )}
+                      <span className="text-xs text-zinc-300 truncate font-medium">{att.name}</span>
+                      <button 
+                         onClick={() => setAttachments(prev => prev.filter((_, idx) => idx !== i))}
+                         className="absolute right-2 text-zinc-500 hover:text-red-400 transition-colors p-1"
+                      >
+                        <XCircle className="w-4 h-4" />
+                      </button>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+
+              <div className="relative flex items-end gap-2 p-2 bg-zinc-900 border border-white/10 rounded-3xl shadow-2xl focus-within:ring-2 focus-within:ring-violet-500/50 focus-within:border-violet-500/50 transition-all">
+                
+                {/* Attachment Menu */}
+                <div className="relative">
+                  <button 
+                    onClick={() => setIsAttachMenuOpen(!isAttachMenuOpen)}
+                    className="mb-1 ml-1 h-12 w-12 shrink-0 flex items-center justify-center rounded-2xl text-zinc-400 hover:text-white hover:bg-white/5 transition-all"
+                  >
+                    <Paperclip className="w-5 h-5" />
+                  </button>
+                  
+                  <AnimatePresence>
+                    {isAttachMenuOpen && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        className="absolute bottom-full left-0 mb-4 flex flex-col bg-zinc-800 border border-white/10 rounded-xl shadow-2xl overflow-hidden min-w-[160px] z-50"
+                      >
+                        <button 
+                          onClick={() => fileInputRef.current?.click()} 
+                          className="px-4 py-3.5 text-sm text-zinc-300 hover:text-white hover:bg-white/5 flex items-center gap-3 transition-colors border-b border-white/5"
+                        >
+                          <FileImage className="w-4 h-4 text-violet-400" /> Upload Files
+                        </button>
+                        <button 
+                          onClick={() => folderInputRef.current?.click()} 
+                          className="px-4 py-3.5 text-sm text-zinc-300 hover:text-white hover:bg-white/5 flex items-center gap-3 transition-colors"
+                        >
+                          <FolderOpen className="w-4 h-4 text-cyan-400" /> Upload Folder
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Message AI Assistant... (or attach files)"
+                  className="flex-1 max-h-[200px] min-h-[44px] bg-transparent resize-none outline-none py-3 px-2 text-base text-zinc-100 placeholder:text-zinc-500"
+                  rows={1}
+                />
+                <button 
+                  onClick={handleSend}
+                  disabled={(!input.trim() && attachments.length === 0) || isLoading}
+                  className="mb-1 mr-1 h-12 w-12 shrink-0 flex items-center justify-center rounded-2xl bg-white text-black hover:bg-zinc-200 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 shadow-lg"
+                >
+                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin text-black" /> : <Send className="w-5 h-5 ml-0.5 text-black" />}
+                </button>
+              </div>
             </div>
+            
             <div className="text-center mt-4">
               <span className="text-[11px] text-zinc-500 font-medium tracking-wide">
-                AI can make mistakes. Verify important information.
+                AI can make mistakes. Verify important information. Audio/Video not supported natively yet.
               </span>
             </div>
           </div>
