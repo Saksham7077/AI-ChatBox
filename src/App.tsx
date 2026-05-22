@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Send, User, Bot, Loader2, Sparkles, Trash2, LogOut, Mail, Lock, Menu, Plus, MessageSquare, X, Paperclip, FileText, FolderOpen, XCircle, FileImage, UploadCloud, Mic } from "lucide-react";
+import { Send, User, Bot, Loader2, Sparkles, Trash2, LogOut, Mail, Lock, Menu, Plus, MessageSquare, X, Paperclip, FileText, FolderOpen, XCircle, FileImage, UploadCloud, Mic, Download, FileDown } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast, Toaster } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "./utils/supabase";
 import type { Session } from "@supabase/supabase-js";
+import jsPDF from "jspdf";
 
 // -----------------------------------------------------------------------------
 // Authentication Component
@@ -350,6 +351,76 @@ function AiChat({ session }: { session: Session }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
+  const downloadFile = (content: string, type: string, filename: string) => {
+    if (type === 'pdf') {
+      const doc = new jsPDF();
+      const splitText = doc.splitTextToSize(content, 180);
+      let y = 10;
+      for (let i = 0; i < splitText.length; i++) {
+        if (y > 280) {
+          doc.addPage();
+          y = 10;
+        }
+        doc.text(splitText[i], 10, y);
+        y += 7;
+      }
+      doc.save(`${filename}.pdf`);
+      toast.success(`Generated PDF: ${filename}.pdf`);
+    } else {
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${filename}.${type}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success(`Generated File: ${filename}.${type}`);
+    }
+  };
+
+  const renderMessageContent = (content: string) => {
+    const fileMatch = content.match(/<file_download type="([^"]+)" filename="([^"]+)">(.*?)<\/file_download>/s);
+    if (fileMatch) {
+      const type = fileMatch[1];
+      const filename = fileMatch[2];
+      const fileContent = fileMatch[3].trim();
+      const textBefore = content.substring(0, fileMatch.index).trim();
+      const textAfter = content.substring(content.indexOf('</file_download>') + 16).trim();
+
+      return (
+        <div className="space-y-4 w-full">
+          {textBefore && (
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{textBefore}</ReactMarkdown>
+          )}
+          <div className="bg-zinc-800/80 border border-violet-500/30 rounded-xl p-4 flex items-center justify-between shadow-lg">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center text-violet-400">
+                <FileDown className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-semibold text-zinc-200">{filename}</p>
+                <p className="text-xs text-zinc-400">Click to download {type.toUpperCase()} file</p>
+              </div>
+            </div>
+            <button
+              onClick={() => downloadFile(fileContent, type, filename.replace(`.${type}`, ''))}
+              className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-sm font-medium transition-colors shadow-lg shadow-violet-500/20 flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" /> Download
+            </button>
+          </div>
+          {textAfter && (
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{textAfter}</ReactMarkdown>
+          )}
+        </div>
+      );
+    }
+    
+    return <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>;
+  };
+
   useEffect(() => {
     try {
       localStorage.setItem(`ai_chats_${session.user.id}`, JSON.stringify(chatSessions));
@@ -479,7 +550,17 @@ function AiChat({ session }: { session: Session }) {
     setIsLoading(true);
 
     try {
-      const apiMessages = newMessages.map(m => {
+      const systemPrompt = {
+        role: "system",
+        content: `You are an AI assistant. If the user explicitly asks you to create, save, or generate a file, pdf, document, etc. from your response or a specific topic, you must wrap the core content of that document in the following XML format:
+<file_download type="pdf" filename="document.pdf">
+...document content here...
+</file_download>
+Valid types are "pdf", "txt", "md". 
+You can still provide conversational text before and after the XML tag.`
+      };
+
+      const apiMessages = [systemPrompt, ...newMessages.map(m => {
         if (m.role === "user" && m.attachments && m.attachments.length > 0) {
           const content = [];
           let textContent = m.content || "Here are some files:";
@@ -498,7 +579,7 @@ function AiChat({ session }: { session: Session }) {
           return { role: m.role, content };
         }
         return { role: m.role, content: m.content };
-      });
+      })];
 
       const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
@@ -782,13 +863,34 @@ function AiChat({ session }: { session: Session }) {
                                 : "bg-white/[0.03] text-zinc-200 border-white/10 rounded-tl-sm prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-black/50 prose-pre:border prose-pre:border-white/10"
                             }`}>
                               {message.role === "assistant" ? (
-                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                  {message.content}
-                                </ReactMarkdown>
+                                renderMessageContent(message.content)
                               ) : (
                                 <div className="whitespace-pre-wrap">{message.content}</div>
                               )}
                             </div>
+
+                            {message.role === "assistant" && (
+                              <div className="flex gap-3 mt-1 px-2">
+                                <button 
+                                  onClick={() => downloadFile(message.content, 'txt', `Response_${Date.now()}`)}
+                                  className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-500 hover:text-zinc-300 transition-colors"
+                                >
+                                  <Download className="w-3.5 h-3.5" /> TXT
+                                </button>
+                                <button 
+                                  onClick={() => downloadFile(message.content, 'md', `Response_${Date.now()}`)}
+                                  className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-500 hover:text-zinc-300 transition-colors"
+                                >
+                                  <Download className="w-3.5 h-3.5" /> MD
+                                </button>
+                                <button 
+                                  onClick={() => downloadFile(message.content, 'pdf', `Response_${Date.now()}`)}
+                                  className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-500 hover:text-zinc-300 transition-colors"
+                                >
+                                  <Download className="w-3.5 h-3.5" /> PDF
+                                </button>
+                              </div>
+                            )}
                             
                             {/* Render Attachments in History */}
                             {message.attachments && message.attachments.length > 0 && (
